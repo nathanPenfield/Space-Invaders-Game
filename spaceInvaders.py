@@ -112,7 +112,7 @@ class Test(Base):
                 positionAttributeBomb.associateVariable(self.programRef,"position")
                 baseColorBomb = Uniform("vec3",[1.0,1.0,1.0])
                 baseColorBomb.locateVariable(self.programRef,"baseColor")
-                mMatrixBomb = Matrix.makeTranslation(0.0, 0.0, -1) 
+                mMatrixBomb = Matrix.makeTranslation(self.modelMatrixDef.data[0][3], -0.3, -1) 
                 modelMatrixBomb = Uniform("mat4", mMatrixBomb) 
                 modelMatrixBomb.locateVariable(self.programRef,"modelMatrix" )
                 pMatrixBomb = Matrix.makePerspective() 
@@ -120,20 +120,23 @@ class Test(Base):
                 projectionMatrixBomb.locateVariable(self.programRef,"projectionMatrix")
                 self.defenderBombs.append([baseColorBomb,modelMatrixBomb,projectionMatrixBomb])
                 self.spacePressedNow=True
-        
+        else:
+            if self.spacePressedNow:
+                self.spacePressedNow = False
+
         ## movement of enemies. Left to right when changes goes down 0.2 units
         for enemy in self.enemies:
             ## change directions and go down
             if enemy[1].data[0][3]>=0.53:
                 self.enemyDirection = -1
-                for enemy1 in self.enemies:
+                """for enemy1 in self.enemies:
                     m = Matrix.makeTranslation(0,-0.1,0)
-                    enemy1[1].data = m @ enemy1[1].data
+                    enemy1[1].data = m @ enemy1[1].data"""
             if enemy[1].data[0][3]<=-0.53:
                 self.enemyDirection = 1
-                for enemy1 in self.enemies:
+                """for enemy1 in self.enemies:
                     m = Matrix.makeTranslation(0,-0.05,0)
-                    enemy1[1].data = m @ enemy1[1].data  
+                    enemy1[1].data = m @ enemy1[1].data"""
             ## maybe drop bomb
              
             ## basic movement left or right
@@ -141,6 +144,22 @@ class Test(Base):
             m = Matrix.makeTranslation(moveAmountEne,0,0)
             enemy[1].data = m @ enemy[1].data
 
+        ## bounds of defender bombs
+        for bomb in self.defenderBombs:
+            ## stop rendering if off screen
+            if bomb[1].data[1][3]>=0.6:
+                self.defenderBombs.remove(bomb)
+
+            ## check if hitting an enemy
+            for enemy in self.enemies:
+                if bomb[1].data[1][3]<enemy[1].data[1][3]-0.02 and bomb[1].data[1][3]>enemy[1].data[1][3]-0.12:
+                    ## since its a trianlge the x is sort of relavent to height
+                    diff = bomb[1].data[1][3]-enemy[1].data[1][3]
+                    diff += 0.12
+                    diff = diff/2
+                    if bomb[1].data[0][3]<enemy[1].data[0][3]+diff and bomb[1].data[0][3]>enemy[1].data[0][3]-diff:
+                        self.enemies.remove(enemy)
+                        self.defenderBombs.remove(bomb)
             
         ## render scene
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -158,7 +177,8 @@ class Test(Base):
             glDrawArrays(GL_TRIANGLES,0,self.vertexCountEne)
         glBindVertexArray(self.vaoBomb)
         for bomb in self.defenderBombs:
-
+            m = Matrix.makeTranslation(0,0.005,0)
+            bomb[1].data = m @ bomb[1].data
             bomb[0].uploadData()
             bomb[1].uploadData()
             bomb[2].uploadData()
