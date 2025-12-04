@@ -6,6 +6,7 @@ from core.matrix import Matrix
 from OpenGL.GL import * 
 from math import pi
 import numpy as np
+import random
 
 class Test(Base):
     def initialize(self):
@@ -85,6 +86,7 @@ class Test(Base):
             self.enemies.append([baseColorEne,modelMatrixEne,projectionMatrixEne])
 
         self.defenderBombs = []
+        self.attackerBombs = []
         self.vaoBomb = glGenVertexArrays(1)
         self.positionDataBomb =[[0.0,0.0,0.0],[-0.01,0.01,0.0],[0.0,0.02,0.0],[0.01,0.01,0.0]]
         self.vertexCountBomb = len(self.positionDataBomb)
@@ -129,16 +131,28 @@ class Test(Base):
             ## change directions and go down
             if enemy[1].data[0][3]>=0.53:
                 self.enemyDirection = -1
-                """for enemy1 in self.enemies:
+                for enemy1 in self.enemies:
                     m = Matrix.makeTranslation(0,-0.1,0)
-                    enemy1[1].data = m @ enemy1[1].data"""
+                    enemy1[1].data = m @ enemy1[1].data
             if enemy[1].data[0][3]<=-0.53:
                 self.enemyDirection = 1
-                """for enemy1 in self.enemies:
+                for enemy1 in self.enemies:
                     m = Matrix.makeTranslation(0,-0.05,0)
-                    enemy1[1].data = m @ enemy1[1].data"""
+                    enemy1[1].data = m @ enemy1[1].data
             ## maybe drop bomb
-             
+            if random.uniform(0.0,1.0) < 0.0035:
+                glBindVertexArray(self.vaoBomb)
+                positionAttributeBomb = Attribute("vec3",self.positionDataBomb)
+                positionAttributeBomb.associateVariable(self.programRef,"position")
+                baseColorBomb = Uniform("vec3",[1.0,1.0,1.0])
+                baseColorBomb.locateVariable(self.programRef,"baseColor")
+                mMatrixBomb = Matrix.makeTranslation(enemy[1].data[0][3], enemy[1].data[1][3]-0.12, -1) 
+                modelMatrixBomb = Uniform("mat4", mMatrixBomb) 
+                modelMatrixBomb.locateVariable(self.programRef,"modelMatrix" )
+                pMatrixBomb = Matrix.makePerspective() 
+                projectionMatrixBomb = Uniform("mat4", pMatrixBomb) 
+                projectionMatrixBomb.locateVariable(self.programRef,"projectionMatrix")
+                self.attackerBombs.append([baseColorBomb,modelMatrixBomb,projectionMatrixBomb])  
             ## basic movement left or right
             moveAmountEne = self.moveSpeedEne * self.enemyDirection
             m = Matrix.makeTranslation(moveAmountEne,0,0)
@@ -160,7 +174,22 @@ class Test(Base):
                     if bomb[1].data[0][3]<enemy[1].data[0][3]+diff and bomb[1].data[0][3]>enemy[1].data[0][3]-diff:
                         self.enemies.remove(enemy)
                         self.defenderBombs.remove(bomb)
+    
+        ## buonds of attacker bombs
+        for bomb in self.attackerBombs:
+            ## stop rendering if off screen
+            if bomb[1].data[1][3]<=-0.6:
+                self.attackerBombs.remove(bomb)
             
+            ## check if hitting defender
+            if bomb[1].data[1][3]>-0.42 and bomb[1].data[1][3]<-0.32:
+                    ## since its a trianlge the x is sort of relavent to height
+                    diff = bomb[1].data[1][3]+0.32
+                    diff = -1*diff/2
+                    if bomb[1].data[0][3]<self.modelMatrixDef.data[0][3]+diff+0.01 and bomb[1].data[0][3]>self.modelMatrixDef.data[0][3]-diff-0.01:
+                        self.baseColorDef.data=[0.0,0.0,1.0]
+                        self.attackerBombs.remove(bomb)        
+
         ## render scene
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glUseProgram(self.programRef)
@@ -178,6 +207,13 @@ class Test(Base):
         glBindVertexArray(self.vaoBomb)
         for bomb in self.defenderBombs:
             m = Matrix.makeTranslation(0,0.005,0)
+            bomb[1].data = m @ bomb[1].data
+            bomb[0].uploadData()
+            bomb[1].uploadData()
+            bomb[2].uploadData()
+            glDrawArrays(GL_TRIANGLE_FAN,0,self.vertexCountBomb)
+        for bomb in self.attackerBombs:
+            m = Matrix.makeTranslation(0,-0.005,0)
             bomb[1].data = m @ bomb[1].data
             bomb[0].uploadData()
             bomb[1].uploadData()
