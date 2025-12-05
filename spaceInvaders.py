@@ -238,6 +238,10 @@ class Test(Base):
                             self.attackerBombs.remove(bomb)
                             self.lives.pop()
 
+        ## check if game won
+        if self.enemies == []:
+            ## could make this seperate than player alive to diff between player win and lose
+            self.playerAlive = False
         ## render scene
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glUseProgram(self.programRef)
